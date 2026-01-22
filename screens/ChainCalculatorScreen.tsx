@@ -9,13 +9,14 @@ import { Toggle } from '../components/Toggle';
 import { useAudio } from '../hooks/useAudio';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { ChainCalcSettings, GameState } from '../types';
-import { Layout } from '../components/Layout';
+
 
 type DisplayPhase = 'countdown' | 'operation' | 'total';
 type ExtendedSettings = ChainCalcSettings & { isInfinite?: boolean };
 
 export default function ChainCalculatorScreen() {
     const navigation = useNavigation();
+
     const [settings, setSettings] = useLocalStorage<ExtendedSettings>('chain-calc-settings', {
         speed: 3,
         steps: 5,
@@ -58,6 +59,7 @@ export default function ChainCalculatorScreen() {
         if (settings.speed === 3 && settings.steps === 5) return '3';
         return 'custom';
     })();
+
 
     const generateOperation = useCallback((currentTotal: number) => {
         const num = Math.floor(Math.random() * 9) + 1;
@@ -150,6 +152,7 @@ export default function ChainCalculatorScreen() {
     if (!settings) return <View style={styles.container} />;
 
     if (gameState === GameState.PLAYING) {
+        // ... (Rendering Logic kept same)
         const isInitialCountdown = currentStep === 0;
         const showCountdown = displayPhase === 'countdown' && !isInitialCountdown;
         const showTotal = displayPhase === 'total';
@@ -216,6 +219,7 @@ export default function ChainCalculatorScreen() {
     }
 
     if (gameState === GameState.PENDING) {
+        // ...
         return (
             <View style={styles.pendingContainer}>
                 <Text style={styles.questionMark}>?</Text>
@@ -383,6 +387,7 @@ export default function ChainCalculatorScreen() {
                     }}>
                         Training Starten
                     </Button>
+
                 </View>
             </ScrollView>
         </View>

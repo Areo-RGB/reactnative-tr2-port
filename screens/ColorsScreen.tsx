@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { Droplet, Mic } from 'lucide-react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { Slider } from '../components/Slider';
@@ -13,10 +13,36 @@ import { useAudio } from '../hooks/useAudio';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { ColorsSettings, GameState } from '../types';
 import { COLORS_DATA } from '../constants';
-import { Layout } from '../components/Layout';
+import { useFirebaseLobby } from '../hooks/useFirebaseLobby';
 
 export default function ColorsScreen() {
     const navigation = useNavigation();
+    const route = useRoute<any>();
+    const isRemote = route.params?.remoteStart;
+    const clientId = route.params?.clientId || Math.random().toString(36).substring(7); // Fallback if local
+    const deviceName = `Device ${clientId.substring(0, 4)}`;
+
+    const { playBeep } = useAudio();
+
+    // Firebase Hook for Remote Control
+    const {
+        lastCommand,
+        setMyRole,
+        joinLobby,
+        leaveLobby
+    } = useFirebaseLobby(clientId, deviceName);
+
+    // Initialize Remote Presence
+    useEffect(() => {
+        if (isRemote) {
+            joinLobby();
+            setMyRole('display');
+        }
+        return () => {
+            if (isRemote) leaveLobby();
+        };
+    }, [isRemote]);
+
     const [settings, setSettings] = useLocalStorage<ColorsSettings>('colors-settings', {
         intervalMs: 2000,
         limitSteps: 20,
@@ -37,7 +63,25 @@ export default function ColorsScreen() {
     const [triggerCount, setTriggerCount] = useState(0);
     const [waitingForSound, setWaitingForSound] = useState(false);
 
-    const { playBeep } = useAudio();
+    // Remote Control Listener (Firebase)
+    useEffect(() => {
+        // Handle Remote Start
+        if (isRemote && gameState === GameState.CONFIG) {
+            startGame();
+        }
+
+        // Handle Remote Color from Firebase Command
+        if (lastCommand && lastCommand.name) {
+            const colorName = lastCommand.name;
+            const color = COLORS_DATA.find(c => c.name.toLowerCase() === colorName.toLowerCase());
+
+            if (color) {
+                setCurrentColor(color);
+                if (gameState !== GameState.PLAYING) setGameState(GameState.PLAYING);
+                if (settings?.playSound) playBeep(600, 0.1);
+            }
+        }
+    }, [isRemote, lastCommand, playBeep, settings?.playSound]); // Removed startGame from deps to avoid loop
 
     const nextColor = useCallback(() => {
         const next = COLORS_DATA[Math.floor(Math.random() * COLORS_DATA.length)];
@@ -73,6 +117,9 @@ export default function ColorsScreen() {
     useEffect(() => {
         if (gameState !== GameState.PLAYING || !settings) return;
 
+        // If remote mode, do NOT run auto timer
+        if (isRemote) return;
+
         let intervalId: any;
 
         if (!settings.soundControlMode) {
@@ -107,7 +154,7 @@ export default function ColorsScreen() {
         setTimeLeft(settings.totalDurationSec);
         setWaitingForSound(settings.soundControlMode);
         setGameState(GameState.PLAYING);
-        nextColor();
+        if (!isRemote) nextColor(); // Only randomize if local
     };
 
     if (!settings) return <View style={styles.container} />;
@@ -262,6 +309,10 @@ export default function ColorsScreen() {
 
                     <Button size="lg" onPress={startGame}>
                         Training Starten
+                    </Button>
+
+                    <Button variant="secondary" onPress={() => navigation.navigate('Lobby')}>
+                        Lobby Beitreten (Remote)
                     </Button>
                 </View>
             </ScrollView>

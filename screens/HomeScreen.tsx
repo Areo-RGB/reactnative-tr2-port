@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { Monitor, Smartphone } from 'lucide-react-native';
 import { TOOLS } from '../constants';
 import { Card } from '../components/Card';
 
@@ -51,15 +52,35 @@ export default function HomeScreen() {
                                         <View style={styles.textContainer}>
                                             <Text style={styles.cardTitle}>{tool.name}</Text>
                                             <Text style={styles.cardDescription}>{tool.description}</Text>
-                                            <View style={styles.tagsDisplay}>
-                                                {tool.tags.map(tag => (
-                                                    <View key={tag} style={styles.tag}>
-                                                        <Text style={styles.tagText}>
-                                                            {tag}
-                                                        </Text>
-                                                    </View>
-                                                ))}
-                                            </View>
+
+                                            {tool.id === 'colors' ? (
+                                                <View style={styles.actionButtons}>
+                                                    <Pressable
+                                                        style={[styles.actionBtn, { backgroundColor: 'rgba(59, 130, 246, 0.2)' }]}
+                                                        onPress={() => navigation.navigate('Lobby', { initialRole: 'display' })}
+                                                    >
+                                                        <Monitor size={16} color="#3b82f6" />
+                                                        <Text style={[styles.actionBtnText, { color: '#3b82f6' }]}>Display</Text>
+                                                    </Pressable>
+                                                    <Pressable
+                                                        style={[styles.actionBtn, { backgroundColor: 'rgba(239, 68, 68, 0.2)' }]}
+                                                        onPress={() => navigation.navigate('Lobby', { initialRole: 'controller' })}
+                                                    >
+                                                        <Smartphone size={16} color="#ef4444" />
+                                                        <Text style={[styles.actionBtnText, { color: '#ef4444' }]}>Controller</Text>
+                                                    </Pressable>
+                                                </View>
+                                            ) : (
+                                                <View style={styles.tagsDisplay}>
+                                                    {tool.tags.map(tag => (
+                                                        <View key={tag} style={styles.tag}>
+                                                            <Text style={styles.tagText}>
+                                                                {tag}
+                                                            </Text>
+                                                        </View>
+                                                    ))}
+                                                </View>
+                                            )}
                                         </View>
                                     </View>
                                 </Card>
@@ -151,5 +172,24 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         textTransform: 'uppercase',
         color: '#64748b', // slate-500
+    },
+    actionButtons: {
+        flexDirection: 'row',
+        gap: 12,
+        marginTop: 4,
+    },
+    actionBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 8,
+        gap: 8,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.05)',
+    },
+    actionBtnText: {
+        fontSize: 12,
+        fontWeight: 'bold',
     },
 });
