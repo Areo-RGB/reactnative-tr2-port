@@ -13,6 +13,7 @@ import { useAudio } from '../hooks/useAudio';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { ColorsSettings, GameState } from '../types';
 import { COLORS_DATA } from '../constants';
+import { Layout } from '../components/Layout';
 
 export default function ColorsScreen() {
     const navigation = useNavigation();

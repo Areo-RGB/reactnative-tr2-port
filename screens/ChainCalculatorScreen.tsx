@@ -9,6 +9,7 @@ import { Toggle } from '../components/Toggle';
 import { useAudio } from '../hooks/useAudio';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { ChainCalcSettings, GameState } from '../types';
+import { Layout } from '../components/Layout';
 
 type DisplayPhase = 'countdown' | 'operation' | 'total';
 type ExtendedSettings = ChainCalcSettings & { isInfinite?: boolean };
