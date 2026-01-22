@@ -9,10 +9,26 @@
     "web": "expo start --web"
   },
   "dependencies": {
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "@react-native-community/slider": "5.0.1",
+    "@react-navigation/native": "^7.1.28",
+    "@react-navigation/native-stack": "^7.10.1",
+    "babel-preset-expo": "~54.0.10",
+    "clsx": "^2.1.1",
     "expo": "~54.0.32",
+    "expo-av": "~16.0.8",
+    "expo-linear-gradient": "~15.0.8",
     "expo-status-bar": "~3.0.9",
+    "lucide-react-native": "^0.562.0",
+    "nativewind": "^4.2.1",
     "react": "19.1.0",
-    "react-native": "0.81.5"
+    "react-freeze": "^1.0.4",
+    "react-native": "0.81.5",
+    "react-native-reanimated": "~4.1.1",
+    "react-native-safe-area-context": "~5.6.0",
+    "react-native-screens": "~4.16.0",
+    "tailwind-merge": "^3.4.0",
+    "tailwindcss": "^3.4.19"
   },
   "devDependencies": {
     "@types/react": "~19.1.0",
