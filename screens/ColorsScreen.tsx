@@ -27,6 +27,7 @@ export default function ColorsScreen() {
         soundThreshold: 50,
         soundCooldown: 500,
         selectedDeviceId: '',
+        isInfinite: false,
     });
 
     const [gameState, setGameState] = useState<GameState>(GameState.CONFIG);
@@ -76,7 +77,7 @@ export default function ColorsScreen() {
 
         if (!settings.soundControlMode) {
             intervalId = setInterval(() => {
-                if (step >= settings.limitSteps) {
+                if (!settings.isInfinite && step >= settings.limitSteps) {
                     setGameState(GameState.FINISHED);
                 } else {
                     nextColor();
@@ -128,7 +129,10 @@ export default function ColorsScreen() {
         return (
             <FullscreenOverlay onExit={() => setGameState(GameState.CONFIG)} style={[styles.overlay, { backgroundColor: bgColor }]}>
                 <Text style={styles.gameInfoTop}>
-                    {settings.soundControlMode ? `${timeLeft}s` : `${step} / ${settings.limitSteps}`}
+                    {settings.soundControlMode
+                        ? `${timeLeft}s`
+                        : settings.isInfinite ? `Schritt ${step}` : `${step} / ${settings.limitSteps}`
+                    }
                 </Text>
 
                 {settings.useSoundCounter ? (
@@ -187,11 +191,18 @@ export default function ColorsScreen() {
                                         onChange={(v) => setSettings(s => ({ ...s, intervalMs: v }))}
                                         formatValue={(v) => `${(v / 1000).toFixed(1)}s`}
                                     />
+                                    <Toggle
+                                        label="Unendlich"
+                                        description="Kein Limit"
+                                        checked={settings.isInfinite || false}
+                                        onChange={(v) => setSettings(s => ({ ...s, isInfinite: v }))}
+                                    />
                                     <Slider
                                         label="Anzahl Schritte"
                                         value={settings.limitSteps}
                                         min={5} max={100} step={5}
                                         onChange={(v) => setSettings(s => ({ ...s, limitSteps: v }))}
+                                        style={settings.isInfinite ? { opacity: 0.2 } : {}}
                                     />
                                 </>
                             ) : (
