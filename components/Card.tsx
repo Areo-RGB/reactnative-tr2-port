@@ -1,16 +1,17 @@
-import { View, ViewProps, StyleSheet } from 'react-native';
+import React from 'react';
+import { View, ViewProps, StyleProp, ViewStyle, StyleSheet } from 'react-native';
 
 interface CardProps extends ViewProps {
-    style?: any;
+    style?: StyleProp<ViewStyle>;
 }
 
-export function Card({ style, children, ...props }: CardProps) {
+export const Card = React.memo(({ style, children, ...props }: CardProps) => {
     return (
         <View style={[styles.card, style]} {...props}>
             {children}
         </View>
     );
-}
+});
 
 const styles = StyleSheet.create({
     card: {

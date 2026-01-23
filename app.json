@@ -13,7 +13,8 @@
       "backgroundColor": "#020617"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.paul.reactnative"
     },
     "android": {
       "package": "com.paul.reactnative",

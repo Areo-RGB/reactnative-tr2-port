@@ -1,18 +1,31 @@
-import { View, Text, Switch, Pressable, StyleSheet } from 'react-native';
+import React, { memo, useCallback } from 'react';
+import { View, Text, Switch, Pressable, StyleSheet, StyleProp, ViewStyle } from 'react-native';
 
 interface ToggleProps {
     label: string;
     description?: string;
     checked: boolean;
     onChange: (checked: boolean) => void;
-    style?: any;
+    style?: StyleProp<ViewStyle>;
+    accessibilityLabel?: string;
 }
 
-export function Toggle({ label, description, checked, onChange, style }: ToggleProps) {
+export const Toggle = memo(function Toggle({ label, description, checked, onChange, style, accessibilityLabel }: ToggleProps) {
+    const handlePress = useCallback(() => {
+        onChange(!checked);
+    }, [checked, onChange]);
+
+    const defaultAccessibilityLabel = accessibilityLabel || `${label}, ${checked ? 'eingeschaltet' : 'ausgeschaltet'}`;
+
     return (
         <Pressable
-            onPress={() => onChange(!checked)}
+            onPress={handlePress}
             style={[styles.container, style]}
+            accessible={true}
+            accessibilityLabel={defaultAccessibilityLabel}
+            accessibilityHint={description}
+            accessibilityRole="switch"
+            accessibilityState={{ checked: checked }}
         >
             <View style={styles.textContainer}>
                 <Text style={styles.label}>{label}</Text>
@@ -27,7 +40,7 @@ export function Toggle({ label, description, checked, onChange, style }: ToggleP
             />
         </Pressable>
     );
-}
+});
 
 const styles = StyleSheet.create({
     container: {

@@ -1,12 +1,122 @@
-import React from 'react';
+import React, { useMemo, useCallback, memo } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { Monitor, Smartphone } from 'lucide-react-native';
+import { Monitor, Smartphone, LucideIcon } from 'lucide-react-native';
 import { TOOLS } from '../constants';
 import { Card } from '../components/Card';
+import type { HomeScreenNavigationProp, RootStackParamList } from '../types/navigation';
+
+// Memoized ToolCard component to prevent re-renders
+const ToolCard = memo(function ToolCard({
+    tool,
+    accentColor,
+    onToolPress,
+    onPressDisplay,
+    onPressController,
+}: {
+    tool: typeof TOOLS[0];
+    accentColor: string;
+    onToolPress: (path: keyof RootStackParamList) => void;
+    onPressDisplay: () => void;
+    onPressController: () => void;
+}) {
+    const Icon = tool.icon;
+
+    // Memoize the press handler to avoid creating new functions on each render
+    const handlePress = useCallback(() => {
+        onToolPress(tool.path as keyof RootStackParamList);
+    }, [onToolPress, tool.path]);
+
+    return (
+        <Pressable
+            onPress={handlePress}
+            accessible={true}
+            accessibilityLabel={`${tool.name}. ${tool.description}`}
+            accessibilityRole="button"
+            accessibilityHint={`Öffnet ${tool.name}`}
+        >
+            <Card
+                style={[
+                    styles.card,
+                    { borderLeftColor: accentColor, borderLeftWidth: 4 }
+                ]}
+            >
+                <View style={styles.cardContent}>
+                    <View style={styles.iconContainer}>
+                        <Icon size={28} color="#ffffff" />
+                    </View>
+                    <View style={styles.textContainer}>
+                        <Text style={styles.cardTitle}>{tool.name}</Text>
+                        <Text style={styles.cardDescription}>{tool.description}</Text>
+
+                        {tool.id === 'colors' ? (
+                            <View style={styles.actionButtons}>
+                                <Pressable
+                                    style={[styles.actionBtn, { backgroundColor: 'rgba(59, 130, 246, 0.2)' }]}
+                                    onPress={onPressDisplay}
+                                    accessible={true}
+                                    accessibilityLabel="Display Modus"
+                                    accessibilityHint="Öffnet die Lobby im Display Modus"
+                                    accessibilityRole="button"
+                                >
+                                    <Monitor size={16} color="#3b82f6" />
+                                    <Text style={[styles.actionBtnText, { color: '#3b82f6' }]}>Display</Text>
+                                </Pressable>
+                                <Pressable
+                                    style={[styles.actionBtn, { backgroundColor: 'rgba(239, 68, 68, 0.2)' }]}
+                                    onPress={onPressController}
+                                    accessible={true}
+                                    accessibilityLabel="Controller Modus"
+                                    accessibilityHint="Öffnet die Lobby im Controller Modus"
+                                    accessibilityRole="button"
+                                >
+                                    <Smartphone size={16} color="#ef4444" />
+                                    <Text style={[styles.actionBtnText, { color: '#ef4444' }]}>Controller</Text>
+                                </Pressable>
+                            </View>
+                        ) : (
+                            <View style={styles.tagsDisplay}>
+                                {tool.tags.map(tag => (
+                                    <View key={tag} style={styles.tag}>
+                                        <Text style={styles.tagText}>
+                                            {tag}
+                                        </Text>
+                                    </View>
+                                ))}
+                            </View>
+                        )}
+                    </View>
+                </View>
+            </Card>
+        </Pressable>
+    );
+});
 
 export default function HomeScreen() {
-    const navigation = useNavigation<any>();
+    const navigation = useNavigation<HomeScreenNavigationProp>();
+
+    // Memoize accent colors mapping
+    const accentColors = useMemo<Record<string, string>>(() => ({
+        'border-purple-500': '#a855f7',
+        'border-green-500': '#22c55e',
+        'border-blue-500': '#3b82f6',
+        'border-red-500': '#ef4444',
+        'border-orange-500': '#f97316',
+        'border-cyan-500': '#06b6d4',
+    }), []);
+
+    // Navigation handlers with useCallback
+    const handleToolPress = useCallback((path: keyof RootStackParamList) => {
+        navigation.navigate(path);
+    }, [navigation]);
+
+    const handleNavigateToDisplay = useCallback(() => {
+        navigation.navigate('Lobby', { initialRole: 'display' });
+    }, [navigation]);
+
+    const handleNavigateToController = useCallback(() => {
+        navigation.navigate('Lobby', { initialRole: 'controller' });
+    }, [navigation]);
 
     return (
         <View style={styles.container}>
@@ -22,69 +132,17 @@ export default function HomeScreen() {
 
                 <View style={styles.grid}>
                     {TOOLS.map((tool) => {
-                        const Icon = tool.icon;
-                        // Map accent colors manually significantly since we lose tailwind classes
-                        const accentColors: Record<string, string> = {
-                            'border-purple-500': '#a855f7',
-                            'border-green-500': '#22c55e',
-                            'border-blue-500': '#3b82f6',
-                            'border-red-500': '#ef4444',
-                            'border-orange-500': '#f97316',
-                            'border-cyan-500': '#06b6d4',
-                        };
                         const accentColor = accentColors[tool.accentColor] || '#ffffff';
 
                         return (
-                            <Pressable
+                            <ToolCard
                                 key={tool.id}
-                                onPress={() => navigation.navigate(tool.path)}
-                            >
-                                <Card
-                                    style={[
-                                        styles.card,
-                                        { borderLeftColor: accentColor, borderLeftWidth: 4 }
-                                    ]}
-                                >
-                                    <View style={styles.cardContent}>
-                                        <View style={styles.iconContainer}>
-                                            <Icon size={28} color="#ffffff" />
-                                        </View>
-                                        <View style={styles.textContainer}>
-                                            <Text style={styles.cardTitle}>{tool.name}</Text>
-                                            <Text style={styles.cardDescription}>{tool.description}</Text>
-
-                                            {tool.id === 'colors' ? (
-                                                <View style={styles.actionButtons}>
-                                                    <Pressable
-                                                        style={[styles.actionBtn, { backgroundColor: 'rgba(59, 130, 246, 0.2)' }]}
-                                                        onPress={() => navigation.navigate('Lobby', { initialRole: 'display' })}
-                                                    >
-                                                        <Monitor size={16} color="#3b82f6" />
-                                                        <Text style={[styles.actionBtnText, { color: '#3b82f6' }]}>Display</Text>
-                                                    </Pressable>
-                                                    <Pressable
-                                                        style={[styles.actionBtn, { backgroundColor: 'rgba(239, 68, 68, 0.2)' }]}
-                                                        onPress={() => navigation.navigate('Lobby', { initialRole: 'controller' })}
-                                                    >
-                                                        <Smartphone size={16} color="#ef4444" />
-                                                        <Text style={[styles.actionBtnText, { color: '#ef4444' }]}>Controller</Text>
-                                                    </Pressable>
-                                                </View>
-                                            ) : (
-                                                <View style={styles.tagsDisplay}>
-                                                    {tool.tags.map(tag => (
-                                                        <View key={tag} style={styles.tag}>
-                                                            <Text style={styles.tagText}>
-                                                                {tag}
-                                                            </Text>
-                                                        </View>
-                                                    ))}
-                                                </View>
-                                            )}
-                                        </View>
-                                    </View>
-                                </Card>
-                            </Pressable>
+                                tool={tool}
+                                accentColor={accentColor}
+                                onToolPress={handleToolPress}
+                                onPressDisplay={handleNavigateToDisplay}
+                                onPressController={handleNavigateToController}
+                            />
                         );
                     })}
                 </View>

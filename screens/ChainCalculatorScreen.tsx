@@ -4,18 +4,19 @@ import { Calculator, Check, RotateCcw, Infinity as InfinityIcon, X } from 'lucid
 import { useNavigation } from '@react-navigation/native';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
-import { Slider } from '../components/Slider';
+import { StepInput } from '../components/StepInput';
 import { Toggle } from '../components/Toggle';
 import { useAudio } from '../hooks/useAudio';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { ChainCalcSettings, GameState } from '../types';
+import type { ChainCalculatorScreenNavigationProp } from '../types/navigation';
 
 
 type DisplayPhase = 'countdown' | 'operation' | 'total';
 type ExtendedSettings = ChainCalcSettings & { isInfinite?: boolean };
 
 export default function ChainCalculatorScreen() {
-    const navigation = useNavigation();
+    const navigation = useNavigation<ChainCalculatorScreenNavigationProp>();
 
     const [settings, setSettings] = useLocalStorage<ExtendedSettings>('chain-calc-settings', {
         speed: 3,
@@ -44,21 +45,7 @@ export default function ChainCalculatorScreen() {
         }
     }, [playBeep, settings?.playBeep]);
 
-    const applyLevel = (level: number) => {
-        if (!settings) return;
-        if (level === 1) setSettings(s => ({ ...s, speed: 5, steps: 5, isInfinite: false }));
-        if (level === 2) setSettings(s => ({ ...s, speed: 5, steps: 10, isInfinite: false }));
-        if (level === 3) setSettings(s => ({ ...s, speed: 3, steps: 5, isInfinite: false }));
-    };
 
-    const currentLevel = (() => {
-        if (!settings) return 'custom';
-        if (settings.isInfinite) return 'custom';
-        if (settings.speed === 5 && settings.steps === 5) return '1';
-        if (settings.speed === 5 && settings.steps === 10) return '2';
-        if (settings.speed === 3 && settings.steps === 5) return '3';
-        return 'custom';
-    })();
 
 
     const generateOperation = useCallback((currentTotal: number) => {
@@ -70,7 +57,7 @@ export default function ChainCalculatorScreen() {
     useEffect(() => {
         if (gameState !== GameState.PLAYING || !settings) return;
 
-        let timer: any;
+        let timer: ReturnType<typeof setInterval> | ReturnType<typeof setTimeout> | null = null;
 
         if (currentStep === 0) {
             let count = 3;
@@ -84,12 +71,12 @@ export default function ChainCalculatorScreen() {
                     setDisplayValue(String(count));
                     playBeepSound();
                 } else {
-                    clearInterval(timer);
+                    if (timer) clearInterval(timer);
                     setCurrentStep(1);
                     setDisplayPhase('operation');
                 }
             }, 1000);
-            return () => clearInterval(timer);
+            return () => { if (timer) clearInterval(timer as NodeJS.Timeout); };
         }
 
         const shouldStop = !settings.isInfinite && currentStep > settings.steps;
@@ -115,14 +102,14 @@ export default function ChainCalculatorScreen() {
             timer = setInterval(() => {
                 setCountdownValue(prev => {
                     if (prev <= 100) {
-                        clearInterval(timer);
+                        if (timer) clearInterval(timer as NodeJS.Timeout);
                         setDisplayPhase('total');
                         return 0;
                     }
                     return prev - 100;
                 });
             }, 100);
-            return () => clearInterval(timer);
+            return () => { if (timer) clearInterval(timer as NodeJS.Timeout); };
         }
         else if (displayPhase === 'total') {
             playBeepSound();
@@ -131,7 +118,7 @@ export default function ChainCalculatorScreen() {
                 setCurrentStep(s => s + 1);
                 setDisplayPhase('operation');
             }, 800);
-            return () => clearTimeout(timer);
+            return () => { if (timer) clearTimeout(timer as NodeJS.Timeout); };
         }
 
     }, [gameState, currentStep, displayPhase, settings?.steps, settings?.speed, settings?.isInfinite, playBeepSound, generateOperation, runningTotal]);
@@ -321,24 +308,17 @@ export default function ChainCalculatorScreen() {
 
                 <View style={styles.contentStack}>
                     <Card style={{ padding: 32 }}>
-                        <Text style={styles.sectionTitle}>
-                            Level Presets
-                        </Text>
-                        <View style={styles.presetButtons}>
-                            <Button size="sm" variant={currentLevel === '1' ? 'primary' : 'secondary'} onPress={() => applyLevel(1)}>Level 1</Button>
-                            <Button size="sm" variant={currentLevel === '2' ? 'primary' : 'secondary'} onPress={() => applyLevel(2)}>Level 2</Button>
-                            <Button size="sm" variant={currentLevel === '3' ? 'primary' : 'secondary'} onPress={() => applyLevel(3)}>Level 3</Button>
-                        </View>
+
 
                         <View style={{ gap: 48 }}>
-                            <Slider
+                            <StepInput
                                 label="Zeit pro Schritt"
                                 value={settings.speed}
                                 min={1} max={10} step={1}
                                 onChange={(v) => setSettings(s => ({ ...s, speed: v }))}
                                 formatValue={(v) => `${v}s`}
                             />
-                            <Slider
+                            <StepInput
                                 label="Anzahl Schritte"
                                 value={settings.steps}
                                 min={3} max={50} step={1}
@@ -367,12 +347,11 @@ export default function ChainCalculatorScreen() {
 
                     <Card style={{ padding: 32 }}>
                         <Text style={styles.sectionTitle}>Anzeige</Text>
-                        <Slider
+                        <StepInput
                             label="Zahlengröße"
                             value={settings.fontSize}
                             min={4} max={20} step={1}
                             onChange={(v) => setSettings(s => ({ ...s, fontSize: v }))}
-                            formatValue={(v) => `${v}`}
                         />
                     </Card>
 
@@ -590,12 +569,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
     },
-    presetButtons: {
-        flexDirection: 'row',
-        gap: 8,
-        flexWrap: 'wrap',
-        marginBottom: 40,
-    },
+
     togglesRow: {
         flexDirection: 'row',
         flexWrap: 'wrap',

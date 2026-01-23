@@ -7,6 +7,7 @@ import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { useFirebaseLobby, Device as LobbyDevice, Role } from '../hooks/useFirebaseLobby';
 import * as Device from 'expo-device';
+import type { LobbyScreenNavigationProp, LobbyScreenRouteProp } from '../types/navigation';
 
 // Generate a random client ID for this session
 const CLIENT_ID = Math.random().toString(36).substring(7);
@@ -31,8 +32,8 @@ const getDeviceName = (): string => {
 const DEVICE_NAME = getDeviceName();
 
 export default function LobbyScreen() {
-    const navigation = useNavigation<any>();
-    const route = useRoute<any>();
+    const navigation = useNavigation<LobbyScreenNavigationProp>();
+    const route = useRoute<LobbyScreenRouteProp>();
     const { initialRole } = route.params || {};
 
 

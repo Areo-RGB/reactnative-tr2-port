@@ -1,4 +1,5 @@
-import { View, Text, StyleSheet } from 'react-native';
+import React, { memo } from 'react';
+import { View, Text, StyleSheet, StyleProp, ViewStyle } from 'react-native';
 import RNSlider from '@react-native-community/slider';
 
 interface SliderProps {
@@ -9,18 +10,22 @@ interface SliderProps {
     step?: number;
     onChange: (val: number) => void;
     formatValue?: (val: number) => string;
-    style?: any;
+    style?: StyleProp<ViewStyle>;
+    accessibilityLabel?: string;
 }
 
-export function Slider({
-    label, value, min, max, step = 1, onChange, formatValue, style
+export const Slider = memo(function Slider({
+    label, value, min, max, step = 1, onChange, formatValue, style, accessibilityLabel
 }: SliderProps) {
+    const formattedValue = formatValue ? formatValue(value) : value;
+    const defaultAccessibilityLabel = accessibilityLabel || `${label}, ${formattedValue}`;
+
     return (
         <View style={[styles.container, style]}>
             <View style={styles.header}>
                 <Text style={styles.label}>{label}</Text>
                 <Text style={styles.value}>
-                    {formatValue ? formatValue(value) : value}
+                    {formattedValue}
                 </Text>
             </View>
             <RNSlider
@@ -33,10 +38,12 @@ export function Slider({
                 minimumTrackTintColor="#6366f1"
                 maximumTrackTintColor="#374151"
                 thumbTintColor="#ffffff"
+                accessibilityLabel={defaultAccessibilityLabel}
+                accessibilityHint={`Swipe to adjust from ${formatValue?.(min) || min} to ${formatValue?.(max) || max}`}
             />
         </View>
     );
-}
+});
 
 const styles = StyleSheet.create({
     container: {

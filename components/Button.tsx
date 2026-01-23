@@ -1,19 +1,26 @@
-import { Text, Pressable, PressableProps, StyleSheet } from 'react-native';
+import React, { memo } from 'react';
+import { Text, Pressable, PressableProps, StyleSheet, StyleProp, ViewStyle } from 'react-native';
 
 interface ButtonProps extends PressableProps {
     variant?: 'primary' | 'secondary' | 'outline';
     size?: 'sm' | 'md' | 'lg';
-    style?: any;
+    style?: StyleProp<ViewStyle>;
     children: React.ReactNode;
+    accessibilityLabel?: string;
+    accessibilityHint?: string;
 }
 
-export function Button({
+export const Button = memo(function Button({
     children,
     variant = 'primary',
     size = 'md',
     style,
+    accessibilityLabel,
+    accessibilityHint,
     ...props
 }: ButtonProps) {
+    // Convert children to string for accessibility label if not provided
+    const defaultAccessibilityLabel = typeof children === 'string' ? children : 'Button';
 
     return (
         <Pressable
@@ -24,6 +31,11 @@ export function Button({
                 pressed && styles.pressed,
                 style
             ]}
+            accessible={true}
+            accessibilityLabel={accessibilityLabel || defaultAccessibilityLabel}
+            accessibilityHint={accessibilityHint}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: !!props.disabled }}
             {...props}
         >
             <Text style={[styles.textBase, styles[`text${variant}` as keyof typeof styles], styles[`text${size}` as keyof typeof styles]]}>
@@ -31,7 +43,7 @@ export function Button({
             </Text>
         </Pressable>
     );
-}
+});
 
 const styles = StyleSheet.create({
     base: {

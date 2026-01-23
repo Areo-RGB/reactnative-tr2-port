@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { Droplet, Mic } from 'lucide-react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
-import { Slider } from '../components/Slider';
+import { StepInput } from '../components/StepInput';
 import { Toggle } from '../components/Toggle';
 import { FullscreenOverlay } from '../components/FullscreenOverlay';
 import { AudioLevelBar } from '../components/AudioLevelBar';
@@ -14,10 +14,11 @@ import { useLocalStorage } from '../hooks/useLocalStorage';
 import { ColorsSettings, GameState } from '../types';
 import { COLORS_DATA } from '../constants';
 import { useFirebaseLobby } from '../hooks/useFirebaseLobby';
+import type { ColorsScreenNavigationProp, ColorsScreenRouteProp } from '../types/navigation';
 
 export default function ColorsScreen() {
-    const navigation = useNavigation();
-    const route = useRoute<any>();
+    const navigation = useNavigation<ColorsScreenNavigationProp>();
+    const route = useRoute<ColorsScreenRouteProp>();
     const isRemote = route.params?.remoteStart;
     const clientId = route.params?.clientId || Math.random().toString(36).substring(7); // Fallback if local
     const deviceName = `Device ${clientId.substring(0, 4)}`;
@@ -114,29 +115,42 @@ export default function ColorsScreen() {
         onTrigger: handleMicTrigger
     });
 
+    // Use ref to track the interval for proper cleanup
+    const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
     useEffect(() => {
         if (gameState !== GameState.PLAYING || !settings) return;
 
         // If remote mode, do NOT run auto timer
         if (isRemote) return;
 
-        let intervalId: any;
+        // Clear any existing interval before creating a new one
+        if (intervalRef.current) {
+            clearInterval(intervalRef.current);
+            intervalRef.current = null;
+        }
 
         if (!settings.soundControlMode) {
-            intervalId = setInterval(() => {
-                if (!settings.isInfinite && step >= settings.limitSteps) {
-                    setGameState(GameState.FINISHED);
-                } else {
+            intervalRef.current = setInterval(() => {
+                setStep(currentStep => {
+                    if (!settings.isInfinite && currentStep >= settings.limitSteps) {
+                        setGameState(GameState.FINISHED);
+                        return currentStep;
+                    }
                     nextColor();
-                }
+                    return currentStep + 1;
+                });
             }, settings.intervalMs);
         } else {
             if (timeLeft <= 0) {
                 setGameState(GameState.FINISHED);
+                return;
             }
-            intervalId = setInterval(() => {
+            intervalRef.current = setInterval(() => {
                 setTimeLeft(t => {
-                    if (t <= 1) setGameState(GameState.FINISHED);
+                    if (t <= 1) {
+                        setGameState(GameState.FINISHED);
+                    }
                     return t - 1;
                 });
             }, 1000);
@@ -144,8 +158,13 @@ export default function ColorsScreen() {
             setWaitingForSound(true);
         }
 
-        return () => clearInterval(intervalId);
-    }, [gameState, step, settings?.soundControlMode, settings?.intervalMs, settings?.limitSteps, settings?.totalDurationSec, nextColor, timeLeft]);
+        return () => {
+            if (intervalRef.current) {
+                clearInterval(intervalRef.current);
+                intervalRef.current = null;
+            }
+        };
+    }, [gameState, settings?.soundControlMode, settings?.intervalMs, settings?.limitSteps, settings?.isInfinite, settings?.totalDurationSec, nextColor, timeLeft, isRemote]);
 
     const startGame = () => {
         if (!settings) return;
@@ -231,7 +250,7 @@ export default function ColorsScreen() {
 
                             {!settings.soundControlMode ? (
                                 <>
-                                    <Slider
+                                    <StepInput
                                         label="Intervall (Geschwindigkeit)"
                                         value={settings.intervalMs}
                                         min={500} max={5000} step={100}
@@ -244,7 +263,7 @@ export default function ColorsScreen() {
                                         checked={settings.isInfinite || false}
                                         onChange={(v) => setSettings(s => ({ ...s, isInfinite: v }))}
                                     />
-                                    <Slider
+                                    <StepInput
                                         label="Anzahl Schritte"
                                         value={settings.limitSteps}
                                         min={5} max={100} step={5}
@@ -253,7 +272,7 @@ export default function ColorsScreen() {
                                     />
                                 </>
                             ) : (
-                                <Slider
+                                <StepInput
                                     label="Dauer"
                                     value={settings.totalDurationSec}
                                     min={10} max={300} step={10}
@@ -289,14 +308,14 @@ export default function ColorsScreen() {
                             </View>
                             <View style={styles.micControls}>
                                 <AudioLevelBar level={level} threshold={settings.soundThreshold} />
-                                <Slider
+                                <StepInput
                                     label="Schwellenwert"
                                     value={settings.soundThreshold}
                                     min={1} max={100}
                                     onChange={(v) => setSettings(s => ({ ...s, soundThreshold: v }))}
                                     formatValue={(v) => `${v}%`}
                                 />
-                                <Slider
+                                <StepInput
                                     label="Cooldown"
                                     value={settings.soundCooldown}
                                     min={100} max={1000} step={50}
