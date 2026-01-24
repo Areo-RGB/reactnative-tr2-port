@@ -8,6 +8,7 @@
     "android:pixel": "expo run:android --device Pixel_7",
     "android:pad": "expo run:android --device 2410CRP4CG",
     "android:oppo": "expo run:android --device CPH2399",
+    "android:all": "adb devices | grep -v List | grep device | cut -f 1 | xargs -I {} npx expo run:android --device {}",
     "ios": "expo run:ios",
     "web": "expo start --web",
     "build:android": "cd android && ./gradlew assembleRelease"
