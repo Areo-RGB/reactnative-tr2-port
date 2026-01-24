@@ -12,10 +12,6 @@
       "resizeMode": "contain",
       "backgroundColor": "#020617"
     },
-    "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.paul.reactnative"
-    },
     "android": {
       "package": "com.paul.reactnative",
       "adaptiveIcon": {
@@ -43,8 +39,7 @@
       [
         "expo-nearby-connections",
         {
-          "bonjourServicesName": "tr2-connections",
-          "localNetworkUsagePermissionText": "Allow $(PRODUCT_NAME) to discover nearby devices for remote control."
+          "bonjourServicesName": "tr2-connections"
         }
       ]
     ],
