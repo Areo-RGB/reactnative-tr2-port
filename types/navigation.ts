@@ -17,6 +17,7 @@ export type RootStackParamList = {
 export type ColorsScreenParams = {
     remoteStart?: boolean;
     clientId?: string;
+    connectionMode?: 'firebase' | 'nearby';
 } | undefined;
 
 /**
@@ -41,6 +42,6 @@ export type LobbyScreenRouteProp = RouteProp<RootStackParamList, 'Lobby'>;
  */
 declare global {
     namespace ReactNavigation {
-        interface RootParamList extends RootStackParamList {}
+        interface RootParamList extends RootStackParamList { }
     }
 }

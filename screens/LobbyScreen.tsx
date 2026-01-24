@@ -1,59 +1,48 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, Pressable } from 'react-native';
-import { useNavigation, useRoute } from '@react-navigation/native';
-import { Monitor, Smartphone, Play, Users } from 'lucide-react-native';
+import { View, Text, StyleSheet, FlatList, Pressable, Modal } from 'react-native';
+import { useNavigation, useRoute, useIsFocused } from '@react-navigation/native';
+import { Signal, Wifi, Monitor, Smartphone, Users, Settings, X } from 'lucide-react-native';
 import { Layout } from '../components/Layout';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
-import { useFirebaseLobby, Device as LobbyDevice, Role } from '../hooks/useFirebaseLobby';
-import * as Device from 'expo-device';
+import { useLocalStorage } from '../hooks/useLocalStorage';
+import { StepInput } from '../components/StepInput';
+import { Toggle } from '../components/Toggle';
+import { useLobby } from '../context/LobbyContext';
+import { LobbyDevice, Role } from '../types';
 import type { LobbyScreenNavigationProp, LobbyScreenRouteProp } from '../types/navigation';
-
-// Generate a random client ID for this session
-const CLIENT_ID = Math.random().toString(36).substring(7);
-
-// Get a user-friendly device name
-const getDeviceName = (): string => {
-    const name = Device.deviceName || Device.modelName;
-    const manufacturer = Device.manufacturer;
-
-    if (!name) {
-        return `Device ${CLIENT_ID.substring(0, 4)}`;
-    }
-
-    // If name doesn't include manufacturer, prepend it
-    if (manufacturer && !name.toLowerCase().includes(manufacturer.toLowerCase())) {
-        return `${manufacturer} ${name}`;
-    }
-
-    return name;
-};
-
-const DEVICE_NAME = getDeviceName();
 
 export default function LobbyScreen() {
     const navigation = useNavigation<LobbyScreenNavigationProp>();
+    const isFocused = useIsFocused();
     const route = useRoute<LobbyScreenRouteProp>();
     const { initialRole } = route.params || {};
 
+    const [showSettings, setShowSettings] = useState(false);
 
-    // Use the Firebase Hook
+    const [backToWhiteEnabled, setBackToWhiteEnabled] = useLocalStorage('back_to_white_enabled', false);
+    const [backToWhiteDuration, setBackToWhiteDuration] = useLocalStorage('back_to_white_duration', 2);
+
     const {
+        CLIENT_ID,
+        DEVICE_NAME,
         devices,
         myRole,
         setMyRole,
-        remoteMode,
         joinLobby,
         leaveLobby,
         gameState,
         startGame,
         stopGame,
         sendCommand,
-        lastCommand
-    } = useFirebaseLobby(CLIENT_ID, DEVICE_NAME);
+        sendSettings,
+        lastCommand,
+        error
+    } = useLobby();
 
     // Color class to hex mapping
     const colorMap: { [key: string]: string } = {
+        'bg-white': '#ffffff',
         'bg-red-500': '#ef4444',
         'bg-blue-500': '#3b82f6',
         'bg-green-500': '#22c55e',
@@ -63,23 +52,34 @@ export default function LobbyScreen() {
     // Get current display color from lastCommand
     const displayColor = lastCommand?.class ? colorMap[lastCommand.class] || null : null;
 
-    // Auto-Join on mount (or we could have a "Join" button in the hook, but UI usually has it)
-    // The previous screen had a "Join Lobby" button leading here.
-    // So we should probably join automatically when mounting this screen.
+    // Handle Lobby Lifecycle (Join on mount)
     useEffect(() => {
         joinLobby();
         if (initialRole) {
             setMyRole(initialRole);
         }
-        return () => leaveLobby();
-    }, []);
+    }, [initialRole]);
 
     // Navigate to Colors fullscreen when display receives a color command
     useEffect(() => {
-        if (myRole === 'display' && lastCommand?.name) {
-            navigation.navigate('Colors', { remoteStart: true, clientId: CLIENT_ID });
+        if (isFocused && myRole === 'display' && lastCommand?.name) {
+            navigation.navigate('Colors', {
+                remoteStart: true,
+                clientId: CLIENT_ID,
+                connectionMode: 'nearby'
+            });
         }
-    }, [lastCommand, myRole, navigation]);
+    }, [lastCommand, myRole, navigation, isFocused]);
+
+    // Broadcast settings when becoming controller or when settings change
+    useEffect(() => {
+        if (myRole === 'controller') {
+            sendSettings({
+                backToWhite: !!backToWhiteEnabled,
+                duration: backToWhiteDuration ?? 2
+            });
+        }
+    }, [myRole, backToWhiteEnabled, backToWhiteDuration, sendSettings]);
 
     // Handle Remote Colors (Controller Mode)
     const handleSendColor = (colorName: string, colorClass: string, targetId?: string) => {
@@ -152,10 +152,15 @@ export default function LobbyScreen() {
                 <View style={styles.statusSection}>
                     <View style={styles.statusBadge}>
                         <Users size={16} color="#10b981" />
-                        <Text style={styles.statusText}>Connected</Text>
+                        <Text style={styles.statusText}>Nearby Mode Active</Text>
                     </View>
-                    <Text style={styles.lobbyCode}>Firebase Lobby</Text>
                 </View>
+
+                {error && (
+                    <Card style={styles.errorCard}>
+                        <Text style={styles.errorText}>{error.message}</Text>
+                    </Card>
+                )}
 
                 <View style={styles.roleSelection}>
                     <Text style={styles.sectionTitle}>Wähle deine Rolle</Text>
@@ -176,6 +181,18 @@ export default function LobbyScreen() {
                         </Button>
                     </View>
                 </View>
+
+                {myRole === 'controller' && (
+                    <View style={styles.settingsArea}>
+                        <Button
+                            variant="secondary"
+                            onPress={() => setShowSettings(true)}
+                        >
+                            <Settings size={18} color="#94a3b8" />
+                            <Text style={styles.settingsButtonText}>Back2White Einstellungen</Text>
+                        </Button>
+                    </View>
+                )}
 
                 {myRole === 'controller' && (
                     <View style={styles.controllerArea}>
@@ -239,7 +256,7 @@ export default function LobbyScreen() {
 
                 <Text style={styles.sectionTitle}>
                     {myRole === 'controller'
-                        ? `EINZELSTEUERUNG (${devices.filter(d => d.role === 'display').length})`
+                        ? `EINZELSTEUERUNG (${devices.filter((d: LobbyDevice) => d.role === 'display').length})`
                         : 'Verbundene Geräte'}
                 </Text>
                 <FlatList
@@ -249,6 +266,66 @@ export default function LobbyScreen() {
                     contentContainerStyle={styles.listContent}
                 />
             </View>
+
+            {/* Back2White Settings Modal */}
+            <Modal
+                visible={showSettings}
+                animationType="slide"
+                transparent={true}
+                onRequestClose={() => setShowSettings(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>Back2White Einstellungen</Text>
+                            <Pressable onPress={() => setShowSettings(false)}>
+                                <X size={24} color="#94a3b8" />
+                            </Pressable>
+                        </View>
+
+                        <View style={styles.modalBody}>
+                            <Toggle
+                                label="Back2White aktivieren"
+                                description="Farben automatisch nach Dauer auf Weiß zurücksetzen"
+                                checked={backToWhiteEnabled}
+                                onChange={setBackToWhiteEnabled}
+                            />
+
+                            {backToWhiteEnabled && (
+                                <StepInput
+                                    label="Dauer bis zum Zurücksetzen"
+                                    value={backToWhiteDuration}
+                                    min={0.5} max={10} step={0.5}
+                                    onChange={setBackToWhiteDuration}
+                                    formatValue={(v) => `${v}s`}
+                                />
+                            )}
+                        </View>
+
+                        <View style={styles.modalFooter}>
+                            <Button
+                                variant="secondary"
+                                onPress={() => setShowSettings(false)}
+                                style={{ flex: 1, marginRight: 8 }}
+                            >
+                                <Text>Abbrechen</Text>
+                            </Button>
+                            <Button
+                                onPress={() => {
+                                    sendSettings({
+                                        backToWhite: backToWhiteEnabled,
+                                        duration: backToWhiteDuration
+                                    });
+                                    setShowSettings(false);
+                                }}
+                                style={{ flex: 1 }}
+                            >
+                                <Text>Übernehmen</Text>
+                            </Button>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
         </Layout>
     );
 }
@@ -282,6 +359,15 @@ const styles = StyleSheet.create({
         color: '#94a3b8',
         fontWeight: 'bold',
         fontFamily: 'monospace',
+    },
+    modeToggle: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        backgroundColor: 'rgba(255, 255, 255, 0.05)',
+        borderRadius: 8,
     },
     sectionTitle: {
         color: '#ffffff',
@@ -367,5 +453,61 @@ const styles = StyleSheet.create({
         color: '#94a3b8',
         fontSize: 12,
         fontWeight: 'bold',
+    },
+    errorCard: {
+        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+        borderColor: 'rgba(239, 68, 68, 0.3)',
+        marginBottom: 24,
+        padding: 12,
+    },
+    errorText: {
+        color: '#ef4444',
+        fontSize: 14,
+        textAlign: 'center',
+    },
+    settingsArea: {
+        marginBottom: 24,
+    },
+    settingsButtonText: {
+        color: '#94a3b8',
+        fontWeight: '600',
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.75)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 24,
+    },
+    modalContent: {
+        backgroundColor: '#1e293b',
+        borderRadius: 16,
+        width: '100%',
+        maxWidth: 400,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.1)',
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+    },
+    modalTitle: {
+        color: '#ffffff',
+        fontSize: 18,
+        fontWeight: 'bold',
+    },
+    modalBody: {
+        padding: 16,
+        gap: 16,
+    },
+    modalFooter: {
+        flexDirection: 'row',
+        padding: 16,
+        borderTopWidth: 1,
+        borderTopColor: 'rgba(255, 255, 255, 0.1)',
     },
 });

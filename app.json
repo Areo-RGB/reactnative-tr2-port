@@ -23,8 +23,31 @@
         "backgroundColor": "#020617"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "INTERNET",
+        "ACCESS_WIFI_STATE",
+        "CHANGE_WIFI_STATE",
+        "BLUETOOTH",
+        "BLUETOOTH_ADMIN",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "BLUETOOTH_ADVERTISE",
+        "BLUETOOTH_CONNECT",
+        "BLUETOOTH_SCAN",
+        "NEARBY_WIFI_DEVICES",
+        "NFC"
+      ]
     },
+    "plugins": [
+      [
+        "expo-nearby-connections",
+        {
+          "bonjourServicesName": "tr2-connections",
+          "localNetworkUsagePermissionText": "Allow $(PRODUCT_NAME) to discover nearby devices for remote control."
+        }
+      ]
+    ],
     "web": {
       "favicon": "./assets/favicon.png"
     }

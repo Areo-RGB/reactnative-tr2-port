@@ -9,6 +9,7 @@ import {
 } from 'lucide-react-native';
 
 export const COLORS_DATA: ColorData[] = [
+    { name: 'White', class: 'bg-white' },
     { name: 'Red', class: 'bg-red-500' },
     { name: 'Blue', class: 'bg-blue-500' },
     { name: 'Green', class: 'bg-green-500' },

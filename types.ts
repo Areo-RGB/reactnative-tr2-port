@@ -7,6 +7,21 @@ export enum GameState {
     PENDING = 'PENDING'
 }
 
+export type Role = 'display' | 'controller' | 'idle';
+
+export interface LobbyDevice {
+    id: string;
+    client_id: string; // Keep for compatibility
+    role: Role;
+    name: string;
+    lastSeen: number;
+}
+
+export interface GameStateData {
+    state: 'LOBBY' | 'RUNNING';
+    game?: 'colors' | 'chain-calc';
+}
+
 export interface ColorsSettings {
     intervalMs: number;
     limitSteps: number;
@@ -18,6 +33,8 @@ export interface ColorsSettings {
     soundCooldown: number;
     selectedDeviceId: string;
     isInfinite?: boolean;
+    backToWhiteEnabled?: boolean;
+    backToWhiteDuration?: number; // in seconds
 }
 
 export interface ChainCalcSettings {

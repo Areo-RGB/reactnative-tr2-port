@@ -13,7 +13,7 @@ import { useAudio } from '../hooks/useAudio';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { ColorsSettings, GameState } from '../types';
 import { COLORS_DATA } from '../constants';
-import { useFirebaseLobby } from '../hooks/useFirebaseLobby';
+import { useLobby } from '../context/LobbyContext';
 import type { ColorsScreenNavigationProp, ColorsScreenRouteProp } from '../types/navigation';
 
 export default function ColorsScreen() {
@@ -22,16 +22,17 @@ export default function ColorsScreen() {
     const isRemote = route.params?.remoteStart;
     const clientId = route.params?.clientId || Math.random().toString(36).substring(7); // Fallback if local
     const deviceName = `Device ${clientId.substring(0, 4)}`;
+    const connectionMode = route.params?.connectionMode || 'nearby';
 
     const { playBeep } = useAudio();
 
-    // Firebase Hook for Remote Control
     const {
         lastCommand,
         setMyRole,
         joinLobby,
-        leaveLobby
-    } = useFirebaseLobby(clientId, deviceName);
+        leaveLobby,
+        backToWhiteSettings
+    } = useLobby();
 
     // Initialize Remote Presence
     useEffect(() => {
@@ -39,10 +40,7 @@ export default function ColorsScreen() {
             joinLobby();
             setMyRole('display');
         }
-        return () => {
-            if (isRemote) leaveLobby();
-        };
-    }, [isRemote]);
+    }, [isRemote, connectionMode]);
 
     const [settings, setSettings] = useLocalStorage<ColorsSettings>('colors-settings', {
         intervalMs: 2000,
@@ -64,15 +62,19 @@ export default function ColorsScreen() {
     const [triggerCount, setTriggerCount] = useState(0);
     const [waitingForSound, setWaitingForSound] = useState(false);
 
-    // Remote Control Listener (Firebase)
+    const lastProcessedTimestamp = useRef<number>(0);
+
+    // Remote Control Listener (Firebase/Nearby)
     useEffect(() => {
         // Handle Remote Start
         if (isRemote && gameState === GameState.CONFIG) {
             startGame();
         }
 
-        // Handle Remote Color from Firebase Command
-        if (lastCommand && lastCommand.name) {
+        // Handle Remote Color from Command
+        if (lastCommand && lastCommand.name && lastCommand.timestamp > lastProcessedTimestamp.current) {
+            lastProcessedTimestamp.current = lastCommand.timestamp;
+
             const colorName = lastCommand.name;
             const color = COLORS_DATA.find(c => c.name.toLowerCase() === colorName.toLowerCase());
 
@@ -80,9 +82,20 @@ export default function ColorsScreen() {
                 setCurrentColor(color);
                 if (gameState !== GameState.PLAYING) setGameState(GameState.PLAYING);
                 if (settings?.playSound) playBeep(600, 0.1);
+
+                // Back2White logic - auto-revert to white after duration
+                if (isRemote && backToWhiteSettings?.enabled && color.name !== 'White') {
+                    if (revertTimeout.current) clearTimeout(revertTimeout.current);
+                    revertTimeout.current = setTimeout(() => {
+                        const white = COLORS_DATA.find(c => c.name === 'White');
+                        if (white) {
+                            setCurrentColor(white);
+                        }
+                    }, (backToWhiteSettings.duration || 2) * 1000);
+                }
             }
         }
-    }, [isRemote, lastCommand, playBeep, settings?.playSound]); // Removed startGame from deps to avoid loop
+    }, [isRemote, lastCommand, playBeep, settings?.playSound, backToWhiteSettings, gameState]); // Added gameState to deps to ensure it starts if needed
 
     const nextColor = useCallback(() => {
         const next = COLORS_DATA[Math.floor(Math.random() * COLORS_DATA.length)];
@@ -117,6 +130,7 @@ export default function ColorsScreen() {
 
     // Use ref to track the interval for proper cleanup
     const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const revertTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     useEffect(() => {
         if (gameState !== GameState.PLAYING || !settings) return;
@@ -166,6 +180,13 @@ export default function ColorsScreen() {
         };
     }, [gameState, settings?.soundControlMode, settings?.intervalMs, settings?.limitSteps, settings?.isInfinite, settings?.totalDurationSec, nextColor, timeLeft, isRemote]);
 
+    // Cleanup revert timeout on unmount
+    useEffect(() => {
+        return () => {
+            if (revertTimeout.current) clearTimeout(revertTimeout.current);
+        };
+    }, []);
+
     const startGame = () => {
         if (!settings) return;
         setStep(0);
@@ -181,6 +202,7 @@ export default function ColorsScreen() {
     if (gameState === GameState.PLAYING) {
         // Map tailwind color classes to hex codes for FullscreenOverlay background
         const bgColors: Record<string, string> = {
+            'bg-white': '#ffffff',
             'bg-red-500': '#ef4444',
             'bg-blue-500': '#3b82f6',
             'bg-green-500': '#22c55e',
