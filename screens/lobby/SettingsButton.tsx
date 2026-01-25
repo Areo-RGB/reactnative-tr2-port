@@ -1,6 +1,5 @@
 import React from 'react';
 import { View } from 'react-native';
-import { Settings } from 'lucide-react-native';
 import { Button } from '../../components/Button';
 import { Text } from 'react-native';
 import { styles } from './styles';
@@ -16,8 +15,7 @@ export function SettingsButton({ onPress }: SettingsButtonProps) {
                 variant="secondary"
                 onPress={onPress}
             >
-                <Settings size={18} color="#94a3b8" />
-                <Text style={styles.settingsButtonText}>Back2White Einstellungen</Text>
+                <Text style={styles.settingsButtonText}>Einstellungen</Text>
             </Button>
         </View>
     );

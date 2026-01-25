@@ -35,7 +35,7 @@ export function Back2WhiteModal({
             <View style={styles.modalOverlay}>
                 <View style={styles.modalContent}>
                     <View style={styles.modalHeader}>
-                        <Text style={styles.modalTitle}>Back2White Einstellungen</Text>
+                        <Text style={styles.modalTitle}>Einstellungen</Text>
                         <Pressable onPress={onClose}>
                             <X size={24} color="#94a3b8" />
                         </Pressable>

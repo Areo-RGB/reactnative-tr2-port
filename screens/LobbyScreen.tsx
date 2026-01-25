@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList } from 'react-native';
+import { View, Text, FlatList, Platform } from 'react-native';
 import { useNavigation, useRoute, useIsFocused } from '@react-navigation/native';
 import { Users } from 'lucide-react-native';
 import { Layout } from '../components/Layout';
@@ -106,7 +106,7 @@ export default function LobbyScreen() {
                 <View style={styles.statusSection}>
                     <View style={styles.statusBadge}>
                         <Users size={16} color="#10b981" />
-                        <Text style={styles.statusText}>Nearby Mode Active</Text>
+                        <Text style={styles.statusText}>{Platform.OS === 'web' ? 'Firebase Active' : 'Nearby Mode Active'}</Text>
                     </View>
                 </View>
 
