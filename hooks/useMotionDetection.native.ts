@@ -77,6 +77,12 @@ export interface UseMotionDetectionResult {
 
   /** Total motion events detected in current session */
   motionCount: number;
+
+  /** Media stream for video preview (web-only, null on native) */
+  mediaStream: MediaStream | null;
+
+  /** Video element for preview (web-only, null on native) */
+  videoElement: HTMLVideoElement | null;
 }
 
 // ==================== Hook Implementation ====================
@@ -290,6 +296,9 @@ export function useMotionDetection(autoStart = false): UseMotionDetectionResult 
     stop,
     resetTimer,
     motionCount,
+    // Web-only properties (null on native)
+    mediaStream: null,
+    videoElement: null,
   };
 }
 
