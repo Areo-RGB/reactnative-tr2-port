@@ -7,6 +7,7 @@ import HomeScreen from './screens/HomeScreen';
 import ColorsScreen from './screens/ColorsScreen';
 import ChainCalculatorScreen from './screens/ChainCalculatorScreen';
 import LobbyScreen from './screens/LobbyScreen';
+import MotionDetectionScreen from './screens/MotionDetectionScreen';
 
 import { LobbyProvider } from './context/LobbyContext';
 
@@ -28,6 +29,7 @@ export default function App() {
             <Stack.Screen name="Colors" component={ColorsScreen} />
             <Stack.Screen name="ChainCalculator" component={ChainCalculatorScreen} />
             <Stack.Screen name="Lobby" component={LobbyScreen} />
+            <Stack.Screen name="MotionDetection" component={MotionDetectionScreen} />
           </Stack.Navigator>
         </NavigationContainer>
       </LobbyProvider>

@@ -32,7 +32,8 @@
         "BLUETOOTH_CONNECT",
         "BLUETOOTH_SCAN",
         "NEARBY_WIFI_DEVICES",
-        "NFC"
+        "NFC",
+        "android.permission.CAMERA"
       ]
     },
     "plugins": [
@@ -41,7 +42,8 @@
         {
           "bonjourServicesName": "tr2-connections"
         }
-      ]
+      ],
+      "./plugins/withMotionDetection"
     ],
     "web": {
       "favicon": "./assets/favicon.png"
