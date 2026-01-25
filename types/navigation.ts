@@ -9,6 +9,7 @@ export type RootStackParamList = {
     Colors: ColorsScreenParams;
     ChainCalculator: undefined;
     Lobby: LobbyScreenParams;
+    MotionDetection: undefined;
 };
 
 /**
@@ -36,6 +37,7 @@ export type ColorsScreenRouteProp = RouteProp<RootStackParamList, 'Colors'>;
 export type ChainCalculatorScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'ChainCalculator'>;
 export type LobbyScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Lobby'>;
 export type LobbyScreenRouteProp = RouteProp<RootStackParamList, 'Lobby'>;
+export type MotionDetectionScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'MotionDetection'>;
 
 /**
  * Global navigation type declaration for React Navigation

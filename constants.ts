@@ -5,7 +5,8 @@ import {
     Mic,
     Clock,
     Hourglass,
-    Globe
+    Globe,
+    ScanLine
 } from 'lucide-react-native';
 
 export const COLORS_DATA: ColorData[] = [
@@ -38,6 +39,15 @@ export const TOOLS: Tool[] = [
         path: 'ChainCalculator',
         accentColor: 'border-green-500',
         tags: ['Mathe', 'Gedächtnis'],
+    },
+    {
+        id: 'motion-detection',
+        name: 'Motion Detection',
+        description: 'Echtzeit-Bewegungserkennung mit virtuellem Tripwire',
+        icon: ScanLine,
+        path: 'MotionDetection',
+        accentColor: 'border-red-500',
+        tags: ['Kamera', 'Reaktion'],
     },
     // Other tools commented out as they are not part of the port yet
     /*
