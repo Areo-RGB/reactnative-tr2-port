@@ -44,3 +44,5 @@ yarn-error.*
 .gemini
 .serena
 .claude
+__tests__
+.vercel
