@@ -12,19 +12,25 @@
  */
 
 const {
-  withProjectBuildGradle,
   withAppBuildGradle,
   withMainApplication,
   withDangerousMod,
   createRunOncePlugin,
 } = require('expo/config-plugins');
+const { mergeContents } = require('@expo/config-plugins/build/utils/generateCode');
 const fs = require('fs');
 const path = require('path');
 
 /**
- * CameraX version to use - compatible with the target API levels
+ * CameraX version to use - stable release compatible with target API levels
+ * Updated to 1.5.2 for improved stability and performance
  */
-const CAMERAX_VERSION = '1.3.4';
+const CAMERAX_VERSION = '1.5.2';
+
+/**
+ * Tag used for idempotent code insertion via mergeContents
+ */
+const MOTION_DETECTION_TAG = 'with-motion-detection-package';
 
 /**
  * Add CameraX dependencies to app/build.gradle
@@ -42,7 +48,7 @@ function withCameraXDependencies(config) {
 
       // CameraX dependencies for frame capture and analysis
       const cameraXDeps = `
-    // CameraX dependencies for motion detection
+    // CameraX dependencies for motion detection (version ${CAMERAX_VERSION})
     implementation "androidx.camera:camera-core:${CAMERAX_VERSION}"
     implementation "androidx.camera:camera-camera2:${CAMERAX_VERSION}"
     implementation "androidx.camera:camera-lifecycle:${CAMERAX_VERSION}"
@@ -73,12 +79,12 @@ function withJavaVersion(config) {
     if (config.modResults.language === 'groovy') {
       const buildGradle = config.modResults.contents;
 
-      // Check if compileOptions already exists
+      // Check if compileOptions already exists with Java 17
       if (buildGradle.includes('sourceCompatibility JavaVersion.VERSION_17')) {
         return config;
       }
 
-      // Add compileOptions for Java 17 (required by newer CameraX)
+      // Add compileOptions for Java 17 (required by CameraX 1.5.x)
       const compileOptions = `
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
@@ -107,44 +113,90 @@ function withJavaVersion(config) {
 
 /**
  * Register the MotionDetectionPackage in MainApplication
+ * Uses mergeContents for stable, idempotent insertion
+ *
  * This makes the TurboModule available to JavaScript
  */
 function withMotionDetectionPackage(config) {
   return withMainApplication(config, (config) => {
-    const contents = config.modResults.contents;
+    let contents = config.modResults.contents;
+    const language = config.modResults.language;
 
     // Check if already registered
     if (contents.includes('MotionDetectionPackage')) {
       return config;
     }
 
-    // Add import statement
+    // Add import statement using mergeContents for idempotent insertion
     const importStatement =
       'import com.paul.reactnative.motiondetection.MotionDetectionPackage';
-    const packageImportRegex = /^package .+$/m;
-    const match = contents.match(packageImportRegex);
 
-    if (match) {
-      config.modResults.contents = contents.replace(
-        packageImportRegex,
-        `${match[0]}\n\n${importStatement}`
-      );
+    // Insert import after package declaration
+    const importResult = mergeContents({
+      tag: `${MOTION_DETECTION_TAG}-import`,
+      src: contents,
+      newSrc: importStatement,
+      anchor: /^package .+$/m,
+      offset: 1,
+      comment: '//',
+    });
+
+    if (importResult.didMerge) {
+      contents = importResult.contents;
     }
 
-    // Add package to getPackages() list
-    // Find the packages list in ReactNativeHost
-    const packagesRegex = /override fun getPackages\(\): List<ReactPackage>\s*\{[\s\S]*?return\s+PackageList\(this\)\.packages/;
-    const packagesMatch = config.modResults.contents.match(packagesRegex);
+    // Determine anchor and insertion based on language (Kotlin vs Java)
+    let packageAnchor;
+    let packageLine;
 
-    if (packagesMatch) {
-      // Add to the packages list
-      const newPackagesCode = `${packagesMatch[0]}.apply {
-                add(MotionDetectionPackage())
-            }`;
-      config.modResults.contents = config.modResults.contents.replace(
-        packagesRegex,
-        newPackagesCode
-      );
+    if (language === 'kt' || language === 'kotlin') {
+      // Kotlin: return PackageList(this).packages
+      packageAnchor = /return\s+PackageList\(this\)\.packages/;
+      packageLine = 'packages.add(MotionDetectionPackage())';
+    } else {
+      // Java: return packages;
+      packageAnchor = /return\s+packages;/;
+      packageLine = 'packages.add(new MotionDetectionPackage());';
+    }
+
+    // Insert package registration using mergeContents
+    // Place it before the return statement
+    const packageResult = mergeContents({
+      tag: `${MOTION_DETECTION_TAG}-register`,
+      src: contents,
+      newSrc: `            ${packageLine}`,
+      anchor: packageAnchor,
+      offset: 0,
+      comment: '//',
+    });
+
+    if (packageResult.didMerge) {
+      config.modResults.contents = packageResult.contents;
+    } else {
+      // Fallback: try alternative anchors if primary didn't match
+      // For Expo SDK 54+ which may have different MainApplication structure
+      const altAnchorKotlin = /override fun getPackages\(\)[^{]*\{/;
+      const altAnchorJava = /protected List<ReactPackage> getPackages\(\)[^{]*\{/;
+      const altAnchor = language === 'kt' || language === 'kotlin' ? altAnchorKotlin : altAnchorJava;
+
+      const altResult = mergeContents({
+        tag: `${MOTION_DETECTION_TAG}-register`,
+        src: contents,
+        newSrc: `\n            ${packageLine}`,
+        anchor: altAnchor,
+        offset: 1,
+        comment: '//',
+      });
+
+      if (altResult.didMerge) {
+        config.modResults.contents = altResult.contents;
+      } else {
+        console.warn(
+          '[withMotionDetection] Could not find anchor to insert MotionDetectionPackage. ' +
+            'You may need to manually add it to MainApplication.'
+        );
+        config.modResults.contents = contents;
+      }
     }
 
     return config;
@@ -185,9 +237,13 @@ function withMotionDetectionFiles(config) {
             const srcPath = path.join(nativeFilesDir, file);
             const destPath = path.join(androidSrcPath, file);
             fs.copyFileSync(srcPath, destPath);
-            console.log(`Copied ${file} to ${destPath}`);
+            console.log(`[withMotionDetection] Copied ${file} to ${destPath}`);
           }
         }
+      } else {
+        console.warn(
+          `[withMotionDetection] Native files directory not found: ${nativeFilesDir}`
+        );
       }
 
       return config;

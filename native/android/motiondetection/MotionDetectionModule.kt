@@ -81,6 +81,12 @@ class MotionDetectionModule(reactContext: ReactApplicationContext) :
     MotionDetectionSpec(reactContext) {
 
     companion object {
+        /**
+         * Module name exposed to JavaScript and used for TurboModule resolution
+         * References the spec's NAME constant for consistency
+         */
+        const val NAME = MotionDetectionSpec.NAME
+
         private const val TAG = "MotionDetection"
 
         // Event names for JavaScript communication
@@ -222,11 +228,10 @@ class MotionDetectionModule(reactContext: ReactApplicationContext) :
             return
         }
 
-        // Reset state
+        // Reset state (but don't set isRunning yet - wait for camera setup)
         frameIndex.set(0)
         hasPreviousFrame = false
         previousFrameBuffer = null
-        isRunning.set(true)
 
         // Initialize executors
         // Camera executor handles CameraX operations
@@ -237,11 +242,14 @@ class MotionDetectionModule(reactContext: ReactApplicationContext) :
         analysisExecutor = Executors.newSingleThreadExecutor()
 
         // Start camera on main thread (required by CameraX)
+        // isRunning and emitStatus("started") are called inside setupCamera on success
         reactApplicationContext.currentActivity?.runOnUiThread {
             setupCamera()
+        } ?: run {
+            // No activity available - cleanup and emit error
+            cleanupExecutors()
+            emitError("No activity available for camera")
         }
-
-        emitStatus("started")
     }
 
     /**
@@ -274,12 +282,19 @@ class MotionDetectionModule(reactContext: ReactApplicationContext) :
      * - STRATEGY_KEEP_ONLY_LATEST to drop frames if processing falls behind
      * - Target resolution of 640x480 (sufficient for motion detection)
      * - Backpressure handling to maintain real-time performance
+     *
+     * State Management:
+     * - isRunning is set to true only after successful camera bind
+     * - emitStatus("started") is called only on success
+     * - On failure: cleanup executors and emit error
      */
     private fun setupCamera() {
         val context = reactApplicationContext
         val activity = context.currentActivity
 
         if (activity == null) {
+            Log.e(TAG, "No activity available for camera setup")
+            cleanupExecutors()
             emitError("No activity available for camera")
             return
         }
@@ -318,16 +333,48 @@ class MotionDetectionModule(reactContext: ReactApplicationContext) :
                         cameraSelector,
                         imageAnalysis
                     )
-                    Log.d(TAG, "Camera bound to lifecycle")
+                    Log.d(TAG, "Camera bound to lifecycle successfully")
+
+                    // Only set running and emit started after successful camera bind
+                    isRunning.set(true)
+                    emitStatus("started")
                 } else {
+                    Log.e(TAG, "Activity is not a LifecycleOwner")
+                    cleanupExecutors()
+                    cameraProvider?.unbindAll()
+                    cameraProvider = null
                     emitError("Activity is not a LifecycleOwner")
                 }
 
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to setup camera", e)
+                // Cleanup on failure
+                isRunning.set(false)
+                cleanupExecutors()
+                cameraProvider = null
                 emitError("Camera setup failed: ${e.message}")
             }
         }, ContextCompat.getMainExecutor(context))
+    }
+
+    /**
+     * Helper to cleanup executors without affecting other state
+     * Used during failed camera setup to prevent resource leaks
+     */
+    private fun cleanupExecutors() {
+        try {
+            cameraExecutor?.shutdown()
+            cameraExecutor = null
+        } catch (e: Exception) {
+            Log.e(TAG, "Error shutting down camera executor during cleanup", e)
+        }
+
+        try {
+            analysisExecutor?.shutdown()
+            analysisExecutor = null
+        } catch (e: Exception) {
+            Log.e(TAG, "Error shutting down analysis executor during cleanup", e)
+        }
     }
 
     // ==================== Motion Analysis ====================
@@ -551,20 +598,8 @@ class MotionDetectionModule(reactContext: ReactApplicationContext) :
             }
         }
 
-        // Shutdown executors
-        try {
-            cameraExecutor?.shutdown()
-            cameraExecutor = null
-        } catch (e: Exception) {
-            Log.e(TAG, "Error shutting down camera executor", e)
-        }
-
-        try {
-            analysisExecutor?.shutdown()
-            analysisExecutor = null
-        } catch (e: Exception) {
-            Log.e(TAG, "Error shutting down analysis executor", e)
-        }
+        // Shutdown executors using helper
+        cleanupExecutors()
 
         // Clear buffers
         previousFrameBuffer = null

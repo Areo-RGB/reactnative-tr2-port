@@ -1,61 +1,79 @@
 /**
  * MotionDetectionPackage.kt
  *
- * React Native Package for Motion Detection TurboModule Registration
+ * TurboReactPackage for Motion Detection TurboModule Registration
  *
- * This package registers the MotionDetectionModule with React Native,
- * making it accessible from JavaScript via NativeModules.
+ * This package registers the MotionDetectionModule with React Native's
+ * New Architecture (TurboModules), making it accessible from JavaScript.
  *
  * Package Registration Flow:
  * 1. MainApplication includes this package in getPackages()
- * 2. React Native calls createNativeModules() during initialization
+ * 2. React Native calls getModule() during TurboModule resolution
  * 3. MotionDetectionModule is instantiated and registered
  * 4. JavaScript can access via:
  *    - import { NativeModules } from 'react-native'
  *    - NativeModules.MotionDetection.start(config)
  *
- * The package follows the standard React Native module pattern
- * and is compatible with both Old Architecture and New Architecture (TurboModules).
+ * TurboModule Benefits:
+ * - Lazy loading: Module is only instantiated when first accessed
+ * - Type safety: Direct JSI bindings without JSON serialization overhead
+ * - Better performance: Synchronous native calls where applicable
  */
 
 package com.paul.reactnative.motiondetection
 
-import com.facebook.react.ReactPackage
+import com.facebook.react.TurboReactPackage
 import com.facebook.react.bridge.NativeModule
 import com.facebook.react.bridge.ReactApplicationContext
-import com.facebook.react.uimanager.ViewManager
+import com.facebook.react.module.model.ReactModuleInfo
+import com.facebook.react.module.model.ReactModuleInfoProvider
 
 /**
- * React Package implementation for MotionDetection module
+ * TurboReactPackage implementation for MotionDetection module
  *
- * This class is responsible for creating and providing the
- * MotionDetectionModule instance to React Native.
+ * Extends TurboReactPackage for New Architecture support with
+ * lazy module loading and proper module metadata.
  */
-class MotionDetectionPackage : ReactPackage {
+class MotionDetectionPackage : TurboReactPackage() {
 
     /**
-     * Create native modules for this package
+     * Get a specific module by name
      *
-     * Called by React Native during app initialization.
-     * Returns a list of all native modules provided by this package.
+     * Called by React Native's TurboModule system when the module
+     * is first accessed from JavaScript. This enables lazy loading.
      *
+     * @param name The module name being requested
      * @param reactContext The React application context
-     * @return List containing the MotionDetectionModule
+     * @return The module instance if name matches, null otherwise
      */
-    override fun createNativeModules(reactContext: ReactApplicationContext): List<NativeModule> {
-        return listOf(MotionDetectionModule(reactContext))
+    override fun getModule(name: String, reactContext: ReactApplicationContext): NativeModule? {
+        return if (name == MotionDetectionModule.NAME) {
+            MotionDetectionModule(reactContext)
+        } else {
+            null
+        }
     }
 
     /**
-     * Create view managers for this package
+     * Provide metadata about available modules
      *
-     * This package doesn't provide any custom views, so returns empty list.
-     * View managers would be used for native UI components.
+     * Returns a provider that describes all modules in this package,
+     * including their names, class names, and TurboModule compatibility.
      *
-     * @param reactContext The React application context
-     * @return Empty list (no view managers)
+     * @return ReactModuleInfoProvider with module metadata
      */
-    override fun createViewManagers(reactContext: ReactApplicationContext): List<ViewManager<*, *>> {
-        return emptyList()
+    override fun getReactModuleInfoProvider(): ReactModuleInfoProvider {
+        return ReactModuleInfoProvider {
+            mapOf(
+                MotionDetectionModule.NAME to ReactModuleInfo(
+                    MotionDetectionModule.NAME,           // name
+                    MotionDetectionModule::class.java.name, // className
+                    false,                                  // canOverrideExistingModule
+                    false,                                  // needsEagerInit
+                    false,                                  // isCxxModule
+                    true                                    // isTurboModule
+                )
+            )
+        }
     }
 }
